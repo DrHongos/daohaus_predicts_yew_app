@@ -6,9 +6,14 @@ use yew::html::Scope;
 //use ethers::types::H160;
 mod components;
 mod pages;
+#[allow(non_camel_case_types)]
 mod content;
 use pages::{
-    home::Home, dashboard::Dashboard, prediction::PredictionPage, page_not_found::PageNotFound
+    home::Home, 
+    dashboard::Dashboard, 
+    prediction::PredictionPage, 
+    explorer::Explorer,
+    page_not_found::PageNotFound,
 };
 
 #[derive(Clone, Routable, PartialEq)]
@@ -17,6 +22,8 @@ enum Route {
     Home,
     #[at("/dashboard")]
     Dashboard,
+    #[at("/explorer")]
+    Explorer,
     #[at("/prediction/:id")]
     PredictionPage {id: String},
     #[not_found]
@@ -89,6 +96,7 @@ impl App {
                     >
                         <span aria-hidden="true"></span>
                         <span aria-hidden="true"></span>
+                        <span aria-hidden="true"></span>
                     </button>
                 </div>
                 <div class={classes!("navbar-menu", active_class)}>
@@ -99,7 +107,9 @@ impl App {
                         <Link<Route> classes={classes!("navbar-item")} to={Route::Dashboard}>
                             { "Dashboard" }
                         </Link<Route>>
-
+                        <Link<Route> classes={classes!("navbar-item")} to={Route::Explorer}>
+                            { "Explorer" }
+                        </Link<Route>>
                     </div>
                 </div>
             </nav>
@@ -111,6 +121,9 @@ fn switch(routes: &Route) -> Html {
     match routes.clone() {
         Route::Dashboard => {
             html! { <Dashboard /> }
+        }
+        Route::Explorer => {
+            html! { <Explorer /> }
         }
         Route::PredictionPage { id } => {
             html! { <PredictionPage id={id} /> }
