@@ -1,12 +1,14 @@
+//use chrono::ParseError;
 use yew::prelude::*;
 use wasm_logger;
 use yew_router::prelude::*;
 use yew::html::Scope;
-//use ethers::prelude::*;
+use ethers::prelude::*;
+//use ethers_providers::{Provider, Http, Middleware};
+
 //use ethers::types::H160;
 mod components;
 mod pages;
-#[allow(non_camel_case_types)]
 mod content;
 use pages::{
     home::Home, 
@@ -33,25 +35,78 @@ enum Route {
 
 pub enum Msg {
     ToggleNavbar,
+    ConnectWallet(Provider<Http>),
+    MessagesUser(String),
 }
 
 pub struct App {
     navbar_active: bool,
+    //client: String,//Provider<Http>,
+    //accounts: Vec<Address>,
 }
+async fn check_accounts(client: &Provider<Http>) -> Result<String, String> {
+    match client.get_accounts().await {
+        Ok(accs) => {
+            log::info!("Accounts {:?}", &accs);
+            Ok(accs[0].to_string())
+        },
+        Err(err) => Err(err.to_string()),
+/*         {
+            log::error!("Impossible to fetch accounts {:?}", err);
+        }, */
+    }
+
+}
+
 impl Component for App {
     type Message = Msg;
     type Properties = ();
 
-    fn create(_ctx: &Context<Self>) -> Self {
+    fn create(ctx: &Context<Self>) -> Self {
+        let client = Provider::<Http>::try_from(
+            "https://rpc.gnosischain.com",
+        );
+
+        ctx.link().send_future(async move {
+            match client {
+                Ok(preds) => Msg::ConnectWallet(preds),
+                Err(err) => Msg::MessagesUser(format!("Fail {:?}", err)),
+            }
+        });
         Self {
             navbar_active: false,
+            //client: "test".to_owned(),
+            //accounts: Vec::new(),
         }
-    }
-
-    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
+        }
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Msg::ToggleNavbar => {
                 self.navbar_active = !self.navbar_active;
+                true
+            }
+            Msg::ConnectWallet(client) => {
+                //let accounts = client.get_accounts().await;
+                //    log::info!("Accounts: {:?}", accounts);
+                //  let user_account = accounts.first();
+                // log::info!("Enters, provider: {:?}", &client);
+
+                ctx.link().send_future(async move {
+                    match check_accounts(&client).await {
+                        Ok(accs) => {
+                            log::info!("Accounts {:?}", accs);
+                            Msg::MessagesUser("Oka".to_owned())
+                        },
+                        Err(err) => {
+                            log::error!("Error {:?}", err);
+                            Msg::MessagesUser("Nop".to_owned())
+                        },
+                    }
+                });
+                true
+            }
+            Msg::MessagesUser(msg) => {
+                log::info!("{:?}", msg);
                 true
             }
         }
@@ -78,12 +133,14 @@ impl Component for App {
             </BrowserRouter>
         }
     }
+
 }
 impl App {
     fn view_nav(&self, link: &Scope<Self>) -> Html {
         let Self { navbar_active, .. } = *self;
 
         let active_class = if !navbar_active { "is-active" } else { "" };
+        //let testy =  self.provider.get_chainid();
 
         html! {
             <nav class="navbar is-dark" role="navigation" aria-label="main navigation">
@@ -111,10 +168,38 @@ impl App {
                             { "Explorer" }
                         </Link<Route>>
                     </div>
+                    <div class="navbar-end">
+                        <div class={"navbar-item is-centered"}>
+                            {"Connected"}
+                            /*if let Some(manif) = self.data.manifesto.clone() {
+                                match manif.conditionDescription {
+                                    Some(res) => html!(<p>{"Connected"}</p>),
+                                    None => html!()
+                                }
+                            } else {
+                                html!()
+                            } */
+                        </div>                    
+                    </div>
                 </div>
             </nav>
         }
     }
+
+
+/*     fn connect(&self) -> () {
+        let provider = Provider::<Http>::try_from(
+            "https://mainnet.infura.io/v3/1eb3ab620b5d481097a3cbe77c307154"
+        ).expect("Could not find provider");
+        if provider {
+            self.provider = provider;
+        } 
+        ()
+    } */
+    
+    
+
+
 }
 
 fn switch(routes: &Route) -> Html {

@@ -105,7 +105,6 @@ async fn fetch_manifesto(question_id: String) -> Result<PredictionManifesto, Str
     let manifesto_url = Prediction::get_manifesto_cid(question_id);
     let mut base_url = "https://daohaus.mypinata.cloud/ipfs/".to_owned();
     base_url.push_str(&manifesto_url);
-//    wasm_bindgen_futures::spawn_local(async move {
     let fetched_manifesto = Request::get(&base_url)
         .send()
         .await
@@ -114,9 +113,6 @@ async fn fetch_manifesto(question_id: String) -> Result<PredictionManifesto, Str
         .await
         .unwrap();
     //log::info!("fetched_manifesto {:?}", &fetched_manifesto);
-    //PredictionMsg::ManifestoRetrieved(fetched_manifesto);
-//        }
-//    );
     Ok(fetched_manifesto)
 }
 
@@ -125,10 +121,9 @@ impl Component for PredictionPage {
     type Properties = PredictionPageProps;
     
     fn create(ctx: &Context<Self>) -> Self {
-        // create a msg to set state after the searches    
         let id = ctx.props().id.clone();
         let id2 = ctx.props().id.clone(); // why why why...
-        log::info!("calling prediction: {:?}", &id);
+//        log::info!("calling prediction: {:?}", &id);
         ctx.link().send_future(async move {
             match fetch_prediction(&id).await {
                 Ok(preds) => PredictionMsg::DataRetrieved(preds),

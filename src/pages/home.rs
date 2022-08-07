@@ -60,22 +60,18 @@ impl Home {
 
                 <div class="tile is-parent">
                     <div class="tile is-child box">
-                        <p class="title">{ "When?" }</p>
+                        <p class="title">{ "What?" }</p>
 
                         <div class="content">
-                            { "NOW!" }
-                            { " There's no better time to be doing this." }
+                            { "YEW" }
+                            { " Handling the frontend dev." }
                             <br />
                             {r#"
-                                Now let's fetch some data and create an explorer!
+                                Bulma: first timer here, pretty fast for dev!
                             "#}
                             <br />
                             {r#"
-                                Then a prediction page!
-                            "#}
-                            <br />
-                            {r#"
-                                a user dashboard!
+                                Ethers
                             "#}
                             <br />
                             {r#"
