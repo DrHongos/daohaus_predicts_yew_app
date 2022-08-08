@@ -5,9 +5,7 @@ use yew_router::prelude::*;
 use yew::html::Scope;
 use ethers::prelude::*;
 use wasm_bindgen::prelude::*;
-use wasm_bindgen::JsCast;
-//use wasm_bindgen_futures::*;
-//use 
+
 mod components;
 mod pages;
 mod content;
@@ -36,55 +34,50 @@ enum Route {
 
 pub enum Msg {
     ToggleNavbar,
-    ConnectWallet(Provider<Http>),
+    //ConnectWallet(Provider<Http>),
     MessagesUser(String),
-    CallRust,
-    CallRustAsync,
+    //CallRust,
+    ConnectMetamask,
     SetAddress(String),
 }
 
 pub struct App {
     navbar_active: bool,
-    //client: String,//Provider<Http>,
+    //client: Option<JsonRpcClient>,
     account: Option<String>,
+    // 
 }
 
 #[wasm_bindgen(module = "/src/jscripts/metamask.js")]
 extern "C" {
-    #[wasm_bindgen(js_name = "callEthersAsync")]
+    #[wasm_bindgen(js_name = "connectMetamask")]
     #[wasm_bindgen(catch)]
-    pub async fn callEthersAsync() -> Result<JsValue, JsValue>;
+    pub async fn connectMetamask() -> Result<JsValue, JsValue>;
+
+    #[wasm_bindgen(js_name = "getProvider")]
+    #[wasm_bindgen(catch)]
+    pub async fn getProvider() -> Result<JsValue, JsValue>;
+    
 }
 
 #[wasm_bindgen(module = "/src/jscripts/get-payload-script.js")]
 extern "C" {
-    #[wasm_bindgen(js_name = "getProvider")]
+    #[wasm_bindgen(js_name = "getProviderSync")]
     pub fn get_payload() -> String;
 
     #[wasm_bindgen(js_name = "callEthers")]
     pub fn get_payload_later(payload_callback: JsValue);
 }
 
-/* async fn localCallEthersAsync() -> Result<JsValue, JsValue> {
-    //let promise = callEthersAsync();
-    let promise = js_sys::Promise::new(callEthersAsync());
-    let result = wasm_bindgen_futures::JsFuture::from(promise).await?;
-    Ok(result)
-} */
-
-async fn check_accounts(client: &Provider<Http>) -> Result<String, String> {
+/* async fn check_accounts(client: &Provider<Http>) -> Result<String, String> {
     match client.get_accounts().await {
         Ok(accs) => {
             log::info!("Accounts {:?}", &accs);
             Ok(accs[0].to_string())
         },
         Err(err) => Err(err.to_string()),
-/*         {
-            log::error!("Impossible to fetch accounts {:?}", err);
-        }, */
     }
-
-}
+} */
 
 impl Component for App {
     type Message = Msg;
@@ -103,7 +96,7 @@ impl Component for App {
         }); */
         Self {
             navbar_active: false,
-            //client: "test".to_owned(),
+            //client: None,
             account: None,
         }
         }
@@ -113,7 +106,7 @@ impl Component for App {
                 self.navbar_active = !self.navbar_active;
                 true
             }
-            Msg::ConnectWallet(client) => {
+/*             Msg::ConnectWallet(client) => {
                 ctx.link().send_future(async move {
                     match check_accounts(&client).await {
                         Ok(accs) => {
@@ -127,31 +120,25 @@ impl Component for App {
                     }
                 });
                 true
-            }
+            } */
             Msg::MessagesUser(msg) => {
                 log::info!("{:?}", msg);
                 true
             }
-            Msg::CallRust => {
+/*             Msg::CallRust => {
                 log::info!("Calling to JS");
                 get_payload_later(Closure::once_into_js(move |payload: String| {
                     log::info!("Returns {:?}", payload)
                 }));
                 false
-            }
-            Msg::CallRustAsync => {
+            } */
+            Msg::ConnectMetamask => {
                 ctx.link().send_future(async move {
-                    match callEthersAsync().await {
+                    match connectMetamask().await {
                         Ok(accs) => {
-                            //log::info!("Accounts {:?}", &accs.into_serde::<String>()); // here goes the type!
+                            //log::info!("Accounts {:?}", &accs); // here goes the type!
                             //js_sys::JsString::dyn_into(accs.as_string())
-/*                             match accs {
-                                Ok(address) => Msg::SetAddress(address),
-                                Err(err) => Msg::MessagesUser("Error on connection to wallet".to_owned()),
-                            }; */
-
                             Msg::SetAddress(accs.into_serde::<String>().unwrap())                
-                            //Msg::MessagesUser("Ok_async".to_owned())
                         },
                         Err(err) => {
                             log::error!("Error {:?}", err);
@@ -166,6 +153,11 @@ impl Component for App {
                 self.account = Some(address);
                 true           
             }
+/*             Msg::SetClient(client) => {
+                log::info!("Setted new client");
+                self.client = Some(client);
+                true           
+            } */
         }
     }
 
@@ -242,7 +234,7 @@ impl App {
                                 <button 
                                     class="button is-info"
                                     onclick={link.callback(|_| {
-                                        Msg::CallRustAsync
+                                        Msg::ConnectMetamask
                                     })}
                                     //value={self.payload.clone()}
                                 >                            

@@ -1,4 +1,4 @@
-export function getProvider() {
+export function getProviderSync() {
   const provider = new ethers.providers.Web3Provider(window.ethereum)
   
   // MetaMask requires requesting permission to connect users accounts
