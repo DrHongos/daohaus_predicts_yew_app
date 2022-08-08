@@ -7,34 +7,17 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
     <script defer="" src="https://use.fontawesome.com/releases/v5.3.1/js/all.js"></script>
     <link rel="stylesheet" href="/index-8b7906476da3648f.css">
+
+    <script src="https://cdn.ethers.io/scripts/ethers-v3.min.js" charset="utf-8" type="text/javascript">
+    </script>
     
-    
-    <script type="module">
-      import { ethers } from "https://cdn.ethers.io/lib/ethers-5.2.esm.min.js";
-      // Your code here...
-      // A Web3Provider wraps a standard Web3 provider, which is
-      // what MetaMask injects as window.ethereum into each page
-      const provider = new ethers.providers.Web3Provider(window.ethereum)
-
-      // MetaMask requires requesting permission to connect users accounts
-      await provider.send("eth_requestAccounts", []);
-
-      // The MetaMask plugin also allows signing transactions to
-      // send ether and pay to change state within the blockchain.
-      // For this, you need the account signer...
-      const signer = provider.getSigner()
-
-      // now how to get it from Rust?
-
-     </script>
-
   
-<link rel="preload" href="/yew-dapp-4937d741fcc18dff_bg.wasm" as="fetch" type="application/wasm" crossorigin="">
-<link rel="modulepreload" href="/yew-dapp-4937d741fcc18dff.js"></head>
+<link rel="preload" href="/yew-dapp-b283165162f5be1c_bg.wasm" as="fetch" type="application/wasm" crossorigin="">
+<link rel="modulepreload" href="/yew-dapp-b283165162f5be1c.js"></head>
 
   <body>
 
-<script type="module">import init from '/yew-dapp-4937d741fcc18dff.js';init('/yew-dapp-4937d741fcc18dff_bg.wasm');</script><script>(function () {
+<script type="module">import init from '/yew-dapp-b283165162f5be1c.js';init('/yew-dapp-b283165162f5be1c_bg.wasm');</script><script>(function () {
     var protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     var url = protocol + '//' + window.location.host + '/_trunk/ws';
     var poll_interval = 5000;

@@ -4,9 +4,10 @@ use wasm_logger;
 use yew_router::prelude::*;
 use yew::html::Scope;
 use ethers::prelude::*;
-//use ethers_providers::{Provider, Http, Middleware};
-
-//use ethers::types::H160;
+use wasm_bindgen::prelude::*;
+use wasm_bindgen::JsCast;
+//use wasm_bindgen_futures::*;
+//use 
 mod components;
 mod pages;
 mod content;
@@ -37,13 +38,40 @@ pub enum Msg {
     ToggleNavbar,
     ConnectWallet(Provider<Http>),
     MessagesUser(String),
+    CallRust,
+    CallRustAsync,
+    SetAddress(String),
 }
 
 pub struct App {
     navbar_active: bool,
     //client: String,//Provider<Http>,
-    //accounts: Vec<Address>,
+    account: Option<String>,
 }
+
+#[wasm_bindgen(module = "/src/jscripts/metamask.js")]
+extern "C" {
+    #[wasm_bindgen(js_name = "callEthersAsync")]
+    #[wasm_bindgen(catch)]
+    pub async fn callEthersAsync() -> Result<JsValue, JsValue>;
+}
+
+#[wasm_bindgen(module = "/src/jscripts/get-payload-script.js")]
+extern "C" {
+    #[wasm_bindgen(js_name = "getProvider")]
+    pub fn get_payload() -> String;
+
+    #[wasm_bindgen(js_name = "callEthers")]
+    pub fn get_payload_later(payload_callback: JsValue);
+}
+
+/* async fn localCallEthersAsync() -> Result<JsValue, JsValue> {
+    //let promise = callEthersAsync();
+    let promise = js_sys::Promise::new(callEthersAsync());
+    let result = wasm_bindgen_futures::JsFuture::from(promise).await?;
+    Ok(result)
+} */
+
 async fn check_accounts(client: &Provider<Http>) -> Result<String, String> {
     match client.get_accounts().await {
         Ok(accs) => {
@@ -62,8 +90,8 @@ impl Component for App {
     type Message = Msg;
     type Properties = ();
 
-    fn create(ctx: &Context<Self>) -> Self {
-        let client = Provider::<Http>::try_from(
+    fn create(_ctx: &Context<Self>) -> Self {
+/*         let client = Provider::<Http>::try_from(
             "https://rpc.gnosischain.com",
         );
 
@@ -72,11 +100,11 @@ impl Component for App {
                 Ok(preds) => Msg::ConnectWallet(preds),
                 Err(err) => Msg::MessagesUser(format!("Fail {:?}", err)),
             }
-        });
+        }); */
         Self {
             navbar_active: false,
             //client: "test".to_owned(),
-            //accounts: Vec::new(),
+            account: None,
         }
         }
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
@@ -86,11 +114,6 @@ impl Component for App {
                 true
             }
             Msg::ConnectWallet(client) => {
-                //let accounts = client.get_accounts().await;
-                //    log::info!("Accounts: {:?}", accounts);
-                //  let user_account = accounts.first();
-                // log::info!("Enters, provider: {:?}", &client);
-
                 ctx.link().send_future(async move {
                     match check_accounts(&client).await {
                         Ok(accs) => {
@@ -108,6 +131,40 @@ impl Component for App {
             Msg::MessagesUser(msg) => {
                 log::info!("{:?}", msg);
                 true
+            }
+            Msg::CallRust => {
+                log::info!("Calling to JS");
+                get_payload_later(Closure::once_into_js(move |payload: String| {
+                    log::info!("Returns {:?}", payload)
+                }));
+                false
+            }
+            Msg::CallRustAsync => {
+                ctx.link().send_future(async move {
+                    match callEthersAsync().await {
+                        Ok(accs) => {
+                            //log::info!("Accounts {:?}", &accs.into_serde::<String>()); // here goes the type!
+                            //js_sys::JsString::dyn_into(accs.as_string())
+/*                             match accs {
+                                Ok(address) => Msg::SetAddress(address),
+                                Err(err) => Msg::MessagesUser("Error on connection to wallet".to_owned()),
+                            }; */
+
+                            Msg::SetAddress(accs.into_serde::<String>().unwrap())                
+                            //Msg::MessagesUser("Ok_async".to_owned())
+                        },
+                        Err(err) => {
+                            log::error!("Error {:?}", err);
+                            Msg::MessagesUser("Err_async".to_owned())
+                        },
+                    }
+                });
+                false
+            }
+            Msg::SetAddress(address) => {
+                log::info!("Setted new state: {:?}", &address);
+                self.account = Some(address);
+                true           
             }
         }
     }
@@ -170,7 +227,29 @@ impl App {
                     </div>
                     <div class="navbar-end">
                         <div class={"navbar-item is-centered"}>
-                            {"Connected"}
+/*                             <button 
+                                class="code-block"
+                                onclick={link.callback(|_| {
+                                    Msg::CallRust
+                                })}
+                                //value={self.payload.clone()}
+                            >                            
+                                    {"Connect"}
+                            </button> */
+                            if let Some(address) = &self.account {
+                                <>{address}</>                                
+                            } else {
+                                <button 
+                                    class="button is-info"
+                                    onclick={link.callback(|_| {
+                                        Msg::CallRustAsync
+                                    })}
+                                    //value={self.payload.clone()}
+                                >                            
+                                        {"Connect"}
+                                </button>
+                            }
+
                             /*if let Some(manif) = self.data.manifesto.clone() {
                                 match manif.conditionDescription {
                                     Some(res) => html!(<p>{"Connected"}</p>),
