@@ -1,0 +1,47 @@
+ethers js 
+
+Provider:
+
+_events : Object(f()'s)
+_eventsCount : number
+_maxListeners : number
+_log : Object
+_state : Object
+selectedAddress : address
+chainId : hex number
+_handleAccountsChanged : ()
+_handleConnect : ()
+_handleChainChanged : ()
+_handleDisconnect : ()
+_handleUnlockStateChanged : ()
+_rpcRequest : ()
+request : async ()
+_rpcEngine : Object
+_handleStreamDisconnect : ()
+_jsonRpcConnection : {events, stream, middleware}
+_sendWarnings : Object
+networkVersion : number
+isMetamask : bool
+_sendSync : ()
+enable : ()
+send : ()
+sendAsync : async ()
+_warnOfDeprecation : ()
+--------------------------------------------------
+JsonRpcSigner
+export declare class JsonRpcSigner extends Signer implements TypedDataSigner {
+    readonly provider: JsonRpcProvider;
+    _index: number;
+    _address: string;
+    constructor(constructorGuard: any, provider: JsonRpcProvider, addressOrIndex?: string | number);
+    connect(provider: Provider): JsonRpcSigner;
+    connectUnchecked(): JsonRpcSigner;
+    getAddress(): Promise<string>;
+    sendUncheckedTransaction(transaction: Deferrable<TransactionRequest>): Promise<string>;
+    signTransaction(transaction: Deferrable<TransactionRequest>): Promise<string>;
+    sendTransaction(transaction: Deferrable<TransactionRequest>): Promise<TransactionResponse>;
+    signMessage(message: Bytes | string): Promise<string>;
+    _legacySignMessage(message: Bytes | string): Promise<string>;
+    _signTypedData(domain: TypedDataDomain, types: Record<string, Array<TypedDataField>>, value: Record<string, any>): Promise<string>;
+    unlock(password: string): Promise<boolean>;
+}

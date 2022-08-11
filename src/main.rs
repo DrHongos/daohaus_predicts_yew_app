@@ -1,10 +1,16 @@
+use ethers::providers::JsonRpcClient;
 //use chrono::ParseError;
 use yew::prelude::*;
 use wasm_logger;
 use yew_router::prelude::*;
 use yew::html::Scope;
-use ethers::prelude::*;
 use wasm_bindgen::prelude::*;
+use thiserror::Error;
+use stdweb::{js, Value};
+//use ethers::prelude::*;
+use web_sys::console;
+use serde::{Serialize, Deserialize};
+use js_sys::Reflect;
 
 mod components;
 mod pages;
@@ -32,22 +38,54 @@ enum Route {
     NotFound,
 }
 
+#[derive(Error, Debug)]
+pub enum MetamaskError {
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
+    #[error("no address")]
+    NoAddress,
+    #[error("{0}")]
+    Custom(String),
+}
+
 pub enum Msg {
     ToggleNavbar,
-    //ConnectWallet(Provider<Http>),
     MessagesUser(String),
-    //CallRust,
     ConnectMetamask,
     SetAddress(String),
+    SetChain(String),
+    SetClient(JsValue),
+    //SignMessage,
 }
 
 pub struct App {
     navbar_active: bool,
-    //client: Option<JsonRpcClient>,
-    account: Option<String>,
+    client: Option<JsValue>,
+    address: Option<String>,
+    chain_id: Option<String>,
     // 
 }
 
+/* #[derive(Debug, Serialize, Deserialize)]
+pub struct Basic {
+    pub chainId: String,
+    pub isMetamask: bool,
+} */
+
+#[wasm_bindgen] //(module = "/src/jscripts/metamask.js")
+extern "C" {
+    #[wasm_bindgen]
+    //#[derive(Deserialize, Debug)]
+    pub type JsonRpcClientProxy;
+
+///////////////////////////////////// from the console
+    #[wasm_bindgen(method, structural, indexing_getter)]
+    pub fn chainId(this: &JsonRpcClientProxy) -> String;
+    #[wasm_bindgen(method, structural, indexing_getter)]
+    pub fn isMetamask(this: &JsonRpcClientProxy) -> bool;
+
+}
+    
 #[wasm_bindgen(module = "/src/jscripts/metamask.js")]
 extern "C" {
     #[wasm_bindgen(js_name = "connectMetamask")]
@@ -57,6 +95,10 @@ extern "C" {
     #[wasm_bindgen(js_name = "getProvider")]
     #[wasm_bindgen(catch)]
     pub async fn getProvider() -> Result<JsValue, JsValue>;
+   
+    #[wasm_bindgen(js_name = "signMessage")]
+    #[wasm_bindgen(catch)]
+    pub async fn signMessage() -> Result<JsValue, JsValue>;
     
 }
 
@@ -69,35 +111,65 @@ extern "C" {
     pub fn get_payload_later(payload_callback: JsValue);
 }
 
-/* async fn check_accounts(client: &Provider<Http>) -> Result<String, String> {
-    match client.get_accounts().await {
-        Ok(accs) => {
-            log::info!("Accounts {:?}", &accs);
-            Ok(accs[0].to_string())
-        },
-        Err(err) => Err(err.to_string()),
+impl App {
+    fn get_chain_id(&self) -> String {
+        if let Some(client) = &self.client {
+            match Reflect::get(
+                client.as_ref(), 
+                &JsValue::from("chainId")
+            )
+                .expect("No chain connected")
+                .as_string()
+                {
+                    Some(chain) => chain,
+                    None => "Null".to_owned()
+                }
+        } else {
+            "Not connected".to_owned()
+        }
     }
-} */
+    fn get_address(&self) -> Option<String> {
+        if let Some(client) = &self.client {
+            match Reflect::get(
+                client.as_ref(), 
+                &JsValue::from("selectedAddress")
+            )
+                .expect("No user connected")
+                .as_string()
+                {
+                    Some(address) => Some(address),
+                    None => None
+                }
+        } else {
+            None
+        }
+    }
+    fn has_attr(&self, attribute: String) -> Option<bool> {
+        if let Some(client) = &self.client {
+            let has_attr = Reflect::has(
+                client.as_ref(), 
+                &JsValue::from(attribute)
+            )
+                .expect("Not found");
+            Some(has_attr)
+        } else {
+            None
+        }
+    }
+
+
+}
 
 impl Component for App {
     type Message = Msg;
     type Properties = ();
 
     fn create(_ctx: &Context<Self>) -> Self {
-/*         let client = Provider::<Http>::try_from(
-            "https://rpc.gnosischain.com",
-        );
-
-        ctx.link().send_future(async move {
-            match client {
-                Ok(preds) => Msg::ConnectWallet(preds),
-                Err(err) => Msg::MessagesUser(format!("Fail {:?}", err)),
-            }
-        }); */
         Self {
             navbar_active: false,
-            //client: None,
-            account: None,
+            client: None,
+            chain_id: None,
+            address: None,
         }
         }
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
@@ -106,21 +178,6 @@ impl Component for App {
                 self.navbar_active = !self.navbar_active;
                 true
             }
-/*             Msg::ConnectWallet(client) => {
-                ctx.link().send_future(async move {
-                    match check_accounts(&client).await {
-                        Ok(accs) => {
-                            log::info!("Accounts {:?}", accs);
-                            Msg::MessagesUser("Oka".to_owned())
-                        },
-                        Err(err) => {
-                            log::error!("Error {:?}", err);
-                            Msg::MessagesUser("Nop".to_owned())
-                        },
-                    }
-                });
-                true
-            } */
             Msg::MessagesUser(msg) => {
                 log::info!("{:?}", msg);
                 true
@@ -134,11 +191,13 @@ impl Component for App {
             } */
             Msg::ConnectMetamask => {
                 ctx.link().send_future(async move {
-                    match connectMetamask().await {
+                    match getProvider().await {
                         Ok(accs) => {
-                            //log::info!("Accounts {:?}", &accs); // here goes the type!
-                            //js_sys::JsString::dyn_into(accs.as_string())
-                            Msg::SetAddress(accs.into_serde::<String>().unwrap())                
+                            console::log_2(&"Logging arbitrary values looks like".into(), &accs);
+                            // parse
+//                            let prov_parsed: Result<Basic, JsValue> = accs.into_serde().unwrap();
+                                //let my_type: Basic = serde_json::from_str(&accs.as_string().unwrap()).unwrap();
+                            Msg::SetClient(accs)
                         },
                         Err(err) => {
                             log::error!("Error {:?}", err);
@@ -149,14 +208,29 @@ impl Component for App {
                 false
             }
             Msg::SetAddress(address) => {
-                log::info!("Setted new state: {:?}", &address);
-                self.account = Some(address);
+                log::info!("Address set to {}", &address);
+                self.address = Some(address);
                 true           
             }
-/*             Msg::SetClient(client) => {
-                log::info!("Setted new client");
-                self.client = Some(client);
+            Msg::SetChain(chain) => {
+                log::info!("Chain set to {}", &chain);
+                self.chain_id = Some(chain);
                 true           
+            }
+            Msg::SetClient(provider) => {                
+//                log::info!("provider is object: {:?}", provider.is_object());
+//                log::info!("provider typeof: {:?}", provider.js_typeof());               
+                self.client = Some(provider);
+                true   
+            }
+/*             Msg::SignMessage => {
+                ctx.link().send_future(async move {
+                    match signMessage().await {
+                        Ok(_) => log::info!("Signed on Js Browser"),
+                        Err(err) => log::error!("Error {:?}", err),
+                    }
+                });
+                false
             } */
         }
     }
@@ -216,60 +290,44 @@ impl App {
                         <Link<Route> classes={classes!("navbar-item")} to={Route::Explorer}>
                             { "Explorer" }
                         </Link<Route>>
+
+                        <button 
+                            class="button is-info"
+                            onclick={link.callback(|_| {
+/*                                 let client_parsed: JsonRpcClientProxy = self.client.clone().unwrap().into_serde().unwrap();
+                                let res = client_parsed.isMetamask();                           
+                                log::info!("Is metamask? {:?}", res); */
+                                Msg::MessagesUser("Passed!".to_owned())
+                                //Msg::SignMessage                        
+                            })}
+                        >                            
+                            {"Test methods in client"}
+                        </button>
+
                     </div>
                     <div class="navbar-end">
                         <div class={"navbar-item is-centered"}>
-/*                             <button 
-                                class="code-block"
-                                onclick={link.callback(|_| {
-                                    Msg::CallRust
-                                })}
-                                //value={self.payload.clone()}
-                            >                            
-                                    {"Connect"}
-                            </button> */
-                            if let Some(address) = &self.account {
-                                <>{address}</>                                
+                            <div class="navbar-item is-centered has-text-white">                            
+                                {"Connected to chain "}{&self.get_chain_id()}
+                            </div>
+                            if let Some(address) = &self.get_address() {
+                                <>{address}</>
                             } else {
                                 <button 
                                     class="button is-info"
                                     onclick={link.callback(|_| {
                                         Msg::ConnectMetamask
                                     })}
-                                    //value={self.payload.clone()}
                                 >                            
-                                        {"Connect"}
+                                    {"Connect"}
                                 </button>
                             }
-
-                            /*if let Some(manif) = self.data.manifesto.clone() {
-                                match manif.conditionDescription {
-                                    Some(res) => html!(<p>{"Connected"}</p>),
-                                    None => html!()
-                                }
-                            } else {
-                                html!()
-                            } */
                         </div>                    
                     </div>
                 </div>
             </nav>
         }
     }
-
-
-/*     fn connect(&self) -> () {
-        let provider = Provider::<Http>::try_from(
-            "https://mainnet.infura.io/v3/1eb3ab620b5d481097a3cbe77c307154"
-        ).expect("Could not find provider");
-        if provider {
-            self.provider = provider;
-        } 
-        ()
-    } */
-    
-    
-
 
 }
 
